@@ -2,13 +2,12 @@ const Chance = require("chance")
 const chance = new Chance()
 // const nameData = require('./subname.json')
 
-module.exports = ({ n, goodPools, seed, i }) => {
+module.exports = ({ n, goodPools, blockedSub}) => {
     const disks = []
     for (let j=0; j<n; j++) {
         // Mainstats Config
-        const mainStat = 11103 // 0 for none
         const substatsPool = [31203, 12103, 12102, 21103, 20103, 13103, 13102, 11103, 11102, 23203]
-        const substatsFixedPool = substatsPool.filter(subStat => subStat !== mainStat)
+        const substatsFixedPool = substatsPool.filter(subStat => subStat !== blockedSub)
         // Upgrades count
         const totalUps = chance.weighted([4, 5], [0.8, 0.2])
         // Subs choice
@@ -35,7 +34,6 @@ module.exports = ({ n, goodPools, seed, i }) => {
         }
         // Disk Config 
         const disk = {}
-        if (i) disk.core = i
         disk.pos = j
         disk.goodRolls = goodRolls
         // Disk push

@@ -1,0 +1,27 @@
+{
+  "name": "fada-simulations",
+  "version": "1.0.0",
+  "description": "Simulation code that helps with the math behind rolls estimation",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hasaki261/fadaSim.git"
+  },
+  "keywords": [],
+  "author": "hasas",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/hasaki261/fadaSim/issues"
+  },
+  "homepage": "https://github.com/hasaki261/fadaSim#readme",
+  "dependencies": {
+    "chance": "^1.1.13",
+    "d3-array": "^3.2.4",
+    "inquirer": "^14.0.2",
+    "piscina": "^5.2.0"
+  }
+}
