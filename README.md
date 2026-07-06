@@ -2,4 +2,4 @@
 
 The code generates random substats and upgrade configurations based on game (Zenless Zone Zero) mechanics, and then analyzes them.
 
-**Chance.js** and **Piscina.js** were used to keep the code cleaner, but you can achieve the same result natively using Web Workers and the `Math.random()` function.
+**Chance.js** and **Piscina.js** were used to keep the code cleaner, but you can achieve the same result natively using `Math.random()` function and Workers Threads module.
