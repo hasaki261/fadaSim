@@ -1,20 +1,18 @@
 const Chance = require("chance")
 const chance = new Chance()
-const nameData = require('./subname.json')
+// const nameData = require('./subname.json')
 
 module.exports = ({ n, goodPools, seed, i }) => {
     const disks = []
     for (let j=0; j<n; j++) {
-        const randomSeed = chance.string({ length: 15 })
-        const diskChance = seed ? new Chance(seed) : new Chance(randomSeed)
         // Mainstats Config
-        const mainStat = 11103
+        const mainStat = 11103 // 0 for none
         const substatsPool = [31203, 12103, 12102, 21103, 20103, 13103, 13102, 11103, 11102, 23203]
         const substatsFixedPool = substatsPool.filter(subStat => subStat !== mainStat)
         // Upgrades count
         const totalUps = chance.weighted([4, 5], [0.8, 0.2])
         // Subs choice
-        const diskSubsDist = diskChance.unique(diskChance.integer, 4, {min: 0, max: substatsFixedPool.length - 1})
+        const diskSubsDist = chance.unique(chance.integer, 4, {min: 0, max: substatsFixedPool.length - 1})
         const diskSubstats = []
         diskSubsDist.forEach(subCount => {
             diskSubstats.push(substatsFixedPool[subCount])
@@ -22,7 +20,7 @@ module.exports = ({ n, goodPools, seed, i }) => {
         // Upgrades choice
         const upgrades = [1, 1, 1, 1]
         for (let ups=0; ups<totalUps; ups++) {
-            const pickedSub = diskChance.integer({ min: 0, max: 3})
+            const pickedSub = chance.integer({ min: 0, max: 3})
             upgrades[pickedSub]++
         }
         // Rolls count 
@@ -37,13 +35,7 @@ module.exports = ({ n, goodPools, seed, i }) => {
         }
         // Disk Config 
         const disk = {}
-        // disk.mainStat = {name: nameData[mainStat], id: mainStat}
-        // disk.frstSub = { name: nameData[diskSubstats[0]], id: diskSubstats[0], rolls: upgrades[0] }
-        // disk.SecSub = { name: nameData[diskSubstats[1]], id: diskSubstats[1], rolls: upgrades[1] }
-        // disk.ThrdSub = { name: nameData[diskSubstats[2]], id: diskSubstats[2], rolls: upgrades[2] }
-        // disk.FothSub = { name: nameData[diskSubstats[3]], id: diskSubstats[3], rolls: upgrades[3] }
-        // disk.seed = seed ? seed : randomSeed
-        disk.core = i
+        if (i) disk.core = i
         disk.pos = j
         disk.goodRolls = goodRolls
         // Disk push
