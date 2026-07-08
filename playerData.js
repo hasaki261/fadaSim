@@ -1,11 +1,11 @@
 const getDisks = require('./getDisks.js')
 const { rollup } = require("d3-array")
 
-module.exports = ({ p, n, goodPools}) => {
+module.exports = ({ p, n, goodPools, blockedSub}) => {
     const staticsArray = []
     for (let o = 0; o < p ; o++) {
         const playerDisks = []
-        playerDisks.push(...getDisks({n, goodPools}))
+        playerDisks.push(...getDisks({n, goodPools, blockedSub}))
         const playerStatics = {}
         const rollsCount = rollup(playerDisks, v => v.length, d => d.goodRolls)
         for (let k = 0; k < (goodPools.length + 6); k++) {
