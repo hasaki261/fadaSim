@@ -40,7 +40,7 @@ async function getPlayerDiskData (playersResult, p, n, goodPools, blockedSub) {
     }
 }
 
-async function taskB(Y, P, N, gP, blockedSub) {
+async function taskB(Y, P, N, gP, blockedSub, mode = 'Normal') {
     // const Y = 10 // CPU cores
     // const P = 100000 // Players per core
     // const N = 21 // Disks per "player"
@@ -51,10 +51,21 @@ async function taskB(Y, P, N, gP, blockedSub) {
         promises.push(getPlayerDiskData(playersResult, P, N, gP, blockedSub))
     }
     await Promise.all(promises)
-    const playersCount = {
-    }
-    for (let a = 0; a < (gP.length + 6); a++) {
-        playersCount[`has-${a}`] = (sum(playersResult, p => p[`has-${a}`]))/P*Y
+    const playersCount = {}
+    if (mode === 'Normal'){
+        for (let a = 0; a < (gP.length + 6); a++) {
+            playersCount[`has-${a}`] = (sum(playersResult, p => p[`has-${a}`]))/P*Y
+        }
+    } else {
+        const playersMax = []
+        playersResult.forEach(player => {
+            for (let i = (gP.length + 5); i > -1; i--) {
+                if (player[`has-${i}`]) return playersMax.push(i)
+            }
+        })
+        for (let a = 0; a < (gP.length + 6); a++) {
+            playersCount[`max-${a}`] = playersMax.filter(x => x === a).length/P*Y
+        }
     }
     console.log(`\x1b[94mResult: \n ${JSON.stringify(playersCount, null, 2)}}\x1b[0m`)
 }
@@ -131,7 +142,15 @@ const CLI = () => {
                 if (value === undefined || isNaN(value)) {
                     return `${value} is not a number`
                 } else return true 
-            }
+            },
+            default: 10
+        },
+        {
+            name: 'modeB',
+            type: 'select',
+            message: 'Which mode of taskB?',
+            when: (answers) => answers.function === 'TaskB',
+            choices: ['Normal', 'Max']
         }
      ]).then((answers) => {
             let weight = weightChoices.indexOf(answers.weight)
@@ -159,7 +178,8 @@ const CLI = () => {
                     if(answers.function === 'TaskA') {
                         taskA(answers.cores, weight, goodPools, blockedSub)
                     } else {
-                        taskB(answers.cores, weight, answers.disks, goodPools, blockedSub)
+                        if (answers.modeB === 'Normal') taskB(answers.cores, weight, answers.disks, goodPools, blockedSub)
+                        else if (answers.modeB === 'Max') taskB(answers.cores, weight, answers.disks, goodPools, blockedSub, 'Max')
                     }
                 }
              })
