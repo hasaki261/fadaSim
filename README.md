@@ -19,9 +19,9 @@ So, this mode can be used to answer questions like this: "If 1000 players farmed
 TaskC simulates a bunch of "players" trying to make a build: Each player generates a certain number of disks for each slot, picks the disk with the most rolls in each slot, and then the code analyzes how many of the players have a specific amount of rolls in total.
 So, taskC is like the final answer you have about build probabilities: "What is my chance of having a build with a specific amount of rolls if I farm a certain number of disks for each slot"
 
-*TaskC can be configured in config files (.JSON), and the configs you can make are almost complete just with a minor limitation:
+> TaskC can be configured in config files (.JSON), and the configs you can make are almost complete just with a minor limitation:
 "**disksMult**" is the amount of disks per slot that will be valid in this slot, so, if you want just DMG% or Pen Ratio in slot 5 for example, just 15% or 0.15 of the disks will be valid.
-But if you want one of two types of mainstats that one blocks a sub and another doesn't block a sub (like ATK% or DMG%), you currently dont have a way to implement this in the config file. This is a very complex limitation and I still need to find a way to solve this.*
+But if you want one of two types of mainstats that one blocks a sub and another doesn't block a sub (like ATK% or DMG%), you currently dont have a way to implement this in the config file. This is a very complex limitation and I still need to find a way to solve this.
 ---
 
 You can try this code by cloning the repo (`git clone https://github.com/hasaki261/fadaSim.git && cd fadaSim`), installing the dependencies (`npm install`), and using the CLI (`node main`) to configure.
