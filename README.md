@@ -15,7 +15,13 @@ Also, TaskB can be used to answer more complex questions: "If 1000 players farme
 #### TaskB - Max
 TaskB max is a submode of TaskB, just changing what the code reads in the result of the simulations: instead of reading how many players have one specific amount of rolls, this mode reads how many of the players have a max of a specific amount of rolls.
 So, this mode can be used to answer questions like this: "If 1000 players farmed 10 disks each, how many of them will have their best disk (out of the 10) be one with 5 rolls?" or "If I farm 10 disks, what is the chance of my best disk to be one with 5 rolls?"
+### TaskC
+TaskC simulates a bunch of "players" trying to make a build: Each player generates a certain number of disks for each slot, picks the disk with the most rolls in each slot, and then the code analyzes how many of the players have a specific amount of rolls in total.
+So, taskC is like the final answer you have about build probabilities: "What is my chance of having a build with a specific amount of rolls if I farm a certain number of disks for each slot"
 
+*TaskC can be configured in config files (.JSON), and the configs you can make are almost complete just with a minor limitation:
+"**disksMult**" is the amount of disks per slot that will be valid in this slot, so, if you want just DMG% or Pen Ratio in slot 5 for example, just 15% or 0.15 of the disks will be valid.
+But if you want one of two types of mainstats that one blocks a sub and another doesn't block a sub (like ATK% or DMG%), you currently dont have a way to implement this in the config file. This is a very complex limitation and I still need to find a way to solve this.*
 ---
 
 You can try this code by cloning the repo (`git clone https://github.com/hasaki261/fadaSim.git && cd fadaSim`), installing the dependencies (`npm install`), and using the CLI (`node main`) to configure.

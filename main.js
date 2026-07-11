@@ -1,5 +1,6 @@
 process.stdout.setMaxListeners(20)
 const path = require("path")
+const fs = require("fs")
 const Piscina = require("piscina")
 const inquirer = require("inquirer").default
 const { rollup, sum } = require("d3-array")
@@ -54,7 +55,7 @@ async function taskB(Y, P, N, gP, blockedSub, mode = 'Normal') {
     const playersCount = {}
     if (mode === 'Normal'){
         for (let a = 0; a < (gP.length + 6); a++) {
-            playersCount[`has-${a}`] = (sum(playersResult, p => p[`has-${a}`]))/P*Y
+            playersCount[`has-${a}`] = (sum(playersResult, p => p[`has-${a}`]))/(P*Y)*100
         }
     } else {
         const playersMax = []
@@ -64,16 +65,66 @@ async function taskB(Y, P, N, gP, blockedSub, mode = 'Normal') {
             }
         })
         for (let a = 0; a < (gP.length + 6); a++) {
-            playersCount[`max-${a}`] = playersMax.filter(x => x === a).length/P*Y
+            playersCount[`max-${a}`] = playersMax.filter(x => x === a).length/(P*Y)*100
         }
     }
-    console.log(`\x1b[94mResult: \n ${JSON.stringify(playersCount, null, 2)}}\x1b[0m`)
+    console.log(`\x1b[94mResult: \n ${JSON.stringify(playersCount, null, 2)}\x1b[0m`)
 }
+
+const piscinaBuilds = new Piscina({
+    filename: path.resolve(__dirname, "playerBuilds.js")
+})
+async function getBuildSlotsData (buildsArr, p, N, slotsConfig) {
+    const result = await piscinaBuilds.run({ p, N, slotsConfig })
+    for (const build of result) {
+        buildsArr.push(build)
+    }
+}
+async function taskC(Y, P, N, file) {
+    const date = new Date()
+    const day = date.getDate()
+    const month = date.getMonth() + 1
+    const hour = date.getHours()
+    const buildsArr = []
+    const buildStatics = {}
+    const configFile = fs.readFileSync(`./slots_config/${file}.json`, 'utf-8')
+    const slotsConfig = JSON.parse(configFile)
+    let totalRolls = 0
+    slotsConfig.forEach(slot => {
+        totalRolls += slot.goodPools.length + 5
+    })
+    const promises = []
+    for (let i = 0; i < Y; i++) {
+        promises.push(getBuildSlotsData(buildsArr, P, N, slotsConfig))
+    }
+    await Promise.all(promises)
+    for (let a = 0; a < totalRolls + 1; a++) {
+        buildStatics[a] = buildsArr.filter(x => x === a).length/(P*Y)*100
+        fs.appendFileSync(`./sim_results/${day}_${month}_h${hour}_config-${file}.csv`, `${a}, ${buildStatics[a]} \n`)
+    }
+    console.log(`\x1b[92mResults in ${`${day}_${month}_h${hour}_config-${file}.csv`}\x1b[0m`)
+}
+
+
 // CLI config
 const weightChoices = ['Fast 10x - Max ± 0.5%', 'Medium 100x - Max ± 0.15%', 'Heavy 1000x - Max ± 0.05%']
+const configFiles = []
+const files = fs.readdirSync('./slots_config', { withFileTypes: true })
+for (const file of files) {
+    if (!(file.isFile())) continue
+    const fileExt = path.extname(file.name)
+    const fileName = path.basename(file.name, fileExt)
+    configFiles.push(fileName)
+}
 const CLI = () => {
     inquirer
      .prompt([
+        {
+            name: 'function',
+            type: 'select',
+            message: 'What task you want to simulate?',
+            choices: ['TaskA', 'TaskB', 'TaskC']
+        },
         {
             name: 'blockedSub',
             type: 'select',
@@ -90,7 +141,8 @@ const CLI = () => {
                 '21103 - Crit DMG',
                 '31203 - Prof'
             ],
-            default: 'None'
+            default: 'None',
+            when: (answers) => answers.function !== 'TaskC'
         },
         {
             name: 'goodPools',
@@ -107,7 +159,8 @@ const CLI = () => {
                 '20103 - Crit Rate',
                 '31203 - Prof',
                 '23203 - Pen'
-            ]
+            ],
+            when: (answers) => answers.function !== 'TaskC'
         },
         {
             name: 'weight',
@@ -122,16 +175,11 @@ const CLI = () => {
             message: 'Amount of Cores:',
             default: 10,
             validate: (value) => {
-                if (value === undefined || isNaN(value)) {
-                    return `${value} is not a number`
-                } else return true 
+                if (!Number.isInteger(value) || value <= 0) {
+                    return `${value} must be a positive whole number`
+                }
+                return true
             }
-        },
-        {
-            name: 'function',
-            type: 'select',
-            message: 'What task you want to simulate?',
-            choices: ['TaskA', 'TaskB']
         },
         {
             name: 'disks',
@@ -139,9 +187,23 @@ const CLI = () => {
             message: 'Disks you want to simulate per player:',
             when: (answers) => answers.function === 'TaskB',
             validate: (value) => {
-                if (value === undefined || isNaN(value)) {
-                    return `${value} is not a number`
-                } else return true 
+                if (!Number.isInteger(value) || value <= 0) {
+                    return `${value} must be a positive whole number`
+                }
+                return true
+            },
+            default: 10
+        },
+        {
+            name: 'diskSlots',
+            type: 'number',
+            message: 'Disks you want to simulate per slot:',
+            when: (answers) => answers.function === 'TaskC',
+            validate: (value) => {
+                if (!Number.isInteger(value) || value <= 0) {
+                    return `${value} must be a positive whole number`
+                }
+                return true
             },
             default: 10
         },
@@ -151,13 +213,29 @@ const CLI = () => {
             message: 'Which mode of taskB?',
             when: (answers) => answers.function === 'TaskB',
             choices: ['Normal', 'Max']
-        }
+        },
+        {
+            name: 'configC',
+            type: 'select',
+            message: 'Slots config file:',
+            when: (answers) => answers.function === 'TaskC',
+            choices: configFiles
+        },
      ]).then((answers) => {
             let weight = weightChoices.indexOf(answers.weight)
             if (weight === 0) weight = 10000
             else if (weight === 1) weight = 100000
             else if (weight === 2) weight = 1000000
-            const totalWeight = answers.disks ? answers.disks*weight : weight
+            let totalWeight = answers.disks || answers.diskSlots ? (answers.disks || answers.diskSlots)*weight : weight
+            if (answers.function === 'TaskC') {
+                const configFile = fs.readFileSync(`./slots_config/${answers.configC}.json`, 'utf-8')
+                const slotsConfig = JSON.parse(configFile)
+                let disksPerBuild = 0
+                slotsConfig.forEach(slot => {
+                    disksPerBuild += Math.floor(slot.disksMult*answers.diskSlots)
+                })
+                totalWeight = weight*disksPerBuild
+            }
             inquirer
              .prompt([
                 {
@@ -169,17 +247,20 @@ const CLI = () => {
                 if (!answer.validation) {
                     return CLI()
                 } else {
-                    const blockedSub = answers.blockedSub === 'None' ? 0 : Number(answers.blockedSub.split(' - ')[0])
+                    const blockedSub = answers.blockedSub === 'None' ? 0 :
+                    answers.blockedSub ? Number(answers.blockedSub.split(' - ')[0]) : undefined
                     const goodPools = []
-                    answers.goodPools.forEach(pool => {
+                    answers.goodPools?.forEach(pool => {
                         const poolId = pool.split(' - ')[0]
                         goodPools.push(Number(poolId))
                     })
                     if(answers.function === 'TaskA') {
                         taskA(answers.cores, weight, goodPools, blockedSub)
-                    } else {
+                    } else if (answers.function === 'TaskB') {
                         if (answers.modeB === 'Normal') taskB(answers.cores, weight, answers.disks, goodPools, blockedSub)
                         else if (answers.modeB === 'Max') taskB(answers.cores, weight, answers.disks, goodPools, blockedSub, 'Max')
+                    } else if (answers.function === 'TaskC') {
+                        taskC(answers.cores, weight, answers.diskSlots, answers.configC)
                     }
                 }
              })

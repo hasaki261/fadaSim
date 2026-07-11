@@ -1,0 +1,32 @@
+[
+    {
+        "disksMult": 1,
+        "goodPools": [31203, 12102],
+        "blockedSub": 11103
+    },
+    {
+        "disksMult": 1,
+        "goodPools": [31203, 12102],
+        "blockedSub": 12103
+    },
+    {
+        "disksMult": 1,
+        "goodPools": [31203, 12102],
+        "blockedSub": 13103
+    },
+    {
+        "disksMult": 0.15,
+        "goodPools": [12102],
+        "blockedSub": 31203
+    },
+    {
+        "disksMult": 0.15,
+        "goodPools": [31203, 12102],
+        "blockedSub": 0
+    },
+    {
+        "disksMult": 0.15,
+        "goodPools": [31203, 12102],
+        "blockedSub": 0
+    }
+]
