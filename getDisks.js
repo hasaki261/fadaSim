@@ -2,17 +2,18 @@ const Chance = require("chance")
 const chance = new Chance()
 // const nameData = require('./subname.json')
 
-module.exports = ({ n, goodPools, blockedSub}) => {
+module.exports = ({ n, goodPools, blockedSub, preDist}) => {
     const disks = []
     for (let j=0; j<n; j++) {
         // Mainstats Config
         const substatsPool = [31203, 12103, 12102, 21103, 20103, 13103, 13102, 11103, 11102, 23203]
-        const substatsFixedPool = substatsPool.filter(subStat => subStat !== blockedSub)
+        const substatsFixedPool = !preDist ? substatsPool.filter(subStat => subStat !== blockedSub) :
+        substatsPool.filter(subStat => subStat !== blockedSub && !preDist.includes(subStat))
         // Upgrades count
         const totalUps = chance.weighted([4, 5], [0.8, 0.2])
         // Subs choice
-        const diskSubsDist = chance.unique(chance.integer, 4, {min: 0, max: substatsFixedPool.length - 1})
-        const diskSubstats = []
+        const diskSubsDist = chance.unique(chance.integer, 4 - (preDist?.length || 0), {min: 0, max: substatsFixedPool.length - 1})
+        const diskSubstats = [...(preDist || [])]
         diskSubsDist.forEach(subCount => {
             diskSubstats.push(substatsFixedPool[subCount])
         })

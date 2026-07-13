@@ -9,20 +9,20 @@ const piscinaDisks = new Piscina({
   filename: path.resolve(__dirname, "getDisks.js"),
 });
 
-async function getDisks (totalDisks, n, goodPools, blockedSub) {
-    const result = await piscinaDisks.run({ n, goodPools, blockedSub })
+async function getDisks (totalDisks, n, goodPools, blockedSub, preDist) {
+    const result = await piscinaDisks.run({ n, goodPools, blockedSub, preDist })
     for (const disk of result) {
         totalDisks.push(disk)
     }
 }
-async function taskA(Y, N, gP, blockedSub) {
+async function taskA(Y, N, gP, blockedSub, preDist) {
     // const Y = 10 // Amount of cpu cores you will use for speed up the simulations
     // const N = 100000 // Amount of disks generated for each core
     // const gP = [12102] // Substats/Upgrades counted as "rolls"
     const totalDisks = []
     const promises = []
     for (let i = 0; i < Y; i++) {
-        promises.push(getDisks(totalDisks, N, gP, blockedSub))
+        promises.push(getDisks(totalDisks, N, gP, blockedSub, preDist))
     }
     await Promise.all(promises)
     const rollsCount = rollup(totalDisks, v => (v.length/(N*Y))*100, d => d.goodRolls)
@@ -34,14 +34,14 @@ const piscinaPlayers = new Piscina({
   filename: path.resolve(__dirname, "playerData.js"),
 });
 
-async function getPlayerDiskData (playersResult, p, n, goodPools, blockedSub) {
-    const result = await piscinaPlayers.run({ p, n, goodPools, blockedSub })
+async function getPlayerDiskData (playersResult, p, n, goodPools, blockedSub, preDist) {
+    const result = await piscinaPlayers.run({ p, n, goodPools, blockedSub, preDist })
     for (const player of result) {
         playersResult.push(player)
     }
 }
 
-async function taskB(Y, P, N, gP, blockedSub, mode = 'Normal') {
+async function taskB(Y, P, N, gP, blockedSub, mode, preDist) {
     // const Y = 10 // CPU cores
     // const P = 100000 // Players per core
     // const N = 21 // Disks per "player"
@@ -49,7 +49,7 @@ async function taskB(Y, P, N, gP, blockedSub, mode = 'Normal') {
     const playersResult = []
     const promises = []
     for (let i = 0; i < Y; i++) {
-        promises.push(getPlayerDiskData(playersResult, P, N, gP, blockedSub))
+        promises.push(getPlayerDiskData(playersResult, P, N, gP, blockedSub, preDist))
     }
     await Promise.all(promises)
     const playersCount = {}
@@ -163,6 +163,24 @@ const CLI = () => {
             when: (answers) => answers.function !== 'TaskC'
         },
         {
+            name: 'preDist',
+            type: 'checkbox',
+            message: 'Do you want pre-picked Substats (Tuning)?',
+            choices: [
+                '11103 - PV Flat',
+                '11102 - PV%',
+                '12103 - ATK Flat',
+                '12102 - ATK%',
+                '13103 - DEF Flat',
+                '13102 - DEF%',
+                '21103 - Crit DMG',
+                '20103 - Crit Rate',
+                '31203 - Prof',
+                '23203 - Pen'
+            ],
+            when: (answers) => answers.function !== 'TaskC'
+        },
+        {
             name: 'weight',
             type: 'select',
             message: 'Amount of Simulations per Core (default: 1000) - Precision',
@@ -254,11 +272,18 @@ const CLI = () => {
                         const poolId = pool.split(' - ')[0]
                         goodPools.push(Number(poolId))
                     })
+                    const preDist = answers.preDist?.length ? [] : null
+                    if (preDist) {
+                        answers.preDist.forEach(pool => {
+                        const poolId = pool.split(' - ')[0]
+                        preDist.push(Number(poolId))
+                    })
+                    }
                     if(answers.function === 'TaskA') {
-                        taskA(answers.cores, weight, goodPools, blockedSub)
+                        taskA(answers.cores, weight, goodPools, blockedSub, preDist)
                     } else if (answers.function === 'TaskB') {
-                        if (answers.modeB === 'Normal') taskB(answers.cores, weight, answers.disks, goodPools, blockedSub)
-                        else if (answers.modeB === 'Max') taskB(answers.cores, weight, answers.disks, goodPools, blockedSub, 'Max')
+                        if (answers.modeB === 'Normal') taskB(answers.cores, weight, answers.disks, goodPools, blockedSub, 'Normal', preDist)
+                        else if (answers.modeB === 'Max') taskB(answers.cores, weight, answers.disks, goodPools, blockedSub, 'Max', preDist)
                     } else if (answers.function === 'TaskC') {
                         taskC(answers.cores, weight, answers.diskSlots, answers.configC)
                     }

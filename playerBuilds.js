@@ -11,7 +11,8 @@ module.exports = ({p, N, slotsConfig}) => {
             const blockedSub = slotsConfig[i].blockedSub
             const n = Math.floor(N * disksMult)
             const slotDisks = []
-            slotDisks.push(...getDisks({n, goodPools, blockedSub}))
+            const preDist = slotsConfig[i].preDist ? slotsConfig[i].preDist : null
+            slotDisks.push(...getDisks({n, goodPools, blockedSub, preDist}))
             let best = slotDisks[0]
             for (const disk of slotDisks) {
                 if (disk.goodRolls > best.goodRolls) {best = disk}
