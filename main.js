@@ -4,10 +4,12 @@ const fs = require("fs")
 const Piscina = require("piscina")
 const inquirer = require("inquirer").default
 const { rollup, sum } = require("d3-array")
-
+const { mathTaskA, mathTaskB_Normal, mathTaskB_Max, mathTaskC} = require("./rollscalc")
+const nodePrcss = require("node:process")
 const piscinaDisks = new Piscina({
   filename: path.resolve(__dirname, "getDisks.js"),
 });
+const isFast = nodePrcss.argv[2] === 'fast'
 
 async function getDisks (totalDisks, n, goodPools, blockedSub, preDist) {
     const result = await piscinaDisks.run({ n, goodPools, blockedSub, preDist })
@@ -15,7 +17,7 @@ async function getDisks (totalDisks, n, goodPools, blockedSub, preDist) {
         totalDisks.push(disk)
     }
 }
-async function taskA(Y, N, gP, blockedSub, preDist) {
+async function taskA(Y, N, gP, blockedSub, preDist, mathObj) {
     // const Y = 10 // Amount of cpu cores you will use for speed up the simulations
     // const N = 100000 // Amount of disks generated for each core
     // const gP = [12102] // Substats/Upgrades counted as "rolls"
@@ -27,6 +29,16 @@ async function taskA(Y, N, gP, blockedSub, preDist) {
     await Promise.all(promises)
     const rollsCount = rollup(totalDisks, v => (v.length/(N*Y))*100, d => d.goodRolls)
     const positioned = [...rollsCount].sort((a, b) => a[0] - b[0])
+    const mathResults = mathTaskA(mathObj.hasBlockedSub, mathObj.gPCount, (preDist?.length || 0), mathObj.preDistGP)
+    mathResults.forEach((mathResult, index) => {
+        let [key, value] = positioned[index] ? positioned[index] : [index, 0]
+        if (index !== key) {
+            [key, value] = [index, 0]
+            positioned.splice(index, 0, [index, 0])
+        }
+        const diff = value - (mathResult*100)
+        positioned[index] = [key, `Sim ${Math.floor(value*10000)/10000} - Math ${Math.floor(mathResult*1000000)/10000} - Diff ${Math.floor(diff*10000)/10000}`]
+    })
     console.log(`\x1b[92mResult: \n ${JSON.stringify(Object.fromEntries(positioned), null, 2)}\x1b[0m`)
 }
 
@@ -41,7 +53,7 @@ async function getPlayerDiskData (playersResult, p, n, goodPools, blockedSub, pr
     }
 }
 
-async function taskB(Y, P, N, gP, blockedSub, mode, preDist) {
+async function taskB(Y, P, N, gP, blockedSub, mode, preDist, mathObj) {
     // const Y = 10 // CPU cores
     // const P = 100000 // Players per core
     // const N = 21 // Disks per "player"
@@ -54,19 +66,29 @@ async function taskB(Y, P, N, gP, blockedSub, mode, preDist) {
     await Promise.all(promises)
     const playersCount = {}
     if (mode === 'Normal'){
-        for (let a = 0; a < (gP.length + 6); a++) {
+        for (let a = 0; a < (Math.min(mathObj.gPCount, 4) + 6); a++) {
             playersCount[`has-${a}`] = (sum(playersResult, p => p[`has-${a}`]))/(P*Y)*100
         }
+        const mathResults = mathTaskB_Normal(mathObj.hasBlockedSub, mathObj.gPCount, N, (preDist?.length || 0), mathObj.preDistGP)
+        mathResults.forEach((mathResult, index) => {
+        const diff = playersCount[`has-${index}`] - mathResult*100
+        playersCount[`has-${index}`] = `Sim ${Math.floor(playersCount[`has-${index}`]*10000)/10000} - Math ${Math.floor(mathResult*1000000)/10000} - Diff ${Math.floor(diff*10000)/10000}`
+    })
     } else {
         const playersMax = []
         playersResult.forEach(player => {
-            for (let i = (gP.length + 5); i > -1; i--) {
+            for (let i = (Math.min(mathObj.gPCount, 4) + 5); i > -1; i--) {
                 if (player[`has-${i}`]) return playersMax.push(i)
             }
         })
-        for (let a = 0; a < (gP.length + 6); a++) {
+        for (let a = 0; a < (Math.min(mathObj.gPCount, 4) + 6); a++) {
             playersCount[`max-${a}`] = playersMax.filter(x => x === a).length/(P*Y)*100
         }
+        const mathResults = mathTaskB_Max(mathObj.hasBlockedSub, mathObj.gPCount, N, (preDist?.length || 0), mathObj.preDistGP)
+        mathResults.forEach((mathResult, index) => {
+        const diff = playersCount[`max-${index}`] - mathResult*100
+        playersCount[`max-${index}`] = `Sim ${Math.floor(playersCount[`max-${index}`]*10000)/10000} - Math ${Math.floor(mathResult*1000000)/10000} - Diff ${Math.floor(diff*10000)/10000}`
+    })
     }
     console.log(`\x1b[94mResult: \n ${JSON.stringify(playersCount, null, 2)}\x1b[0m`)
 }
@@ -80,7 +102,7 @@ async function getBuildSlotsData (buildsArr, p, N, slotsConfig) {
         buildsArr.push(build)
     }
 }
-async function taskC(Y, P, N, file) {
+async function taskC(Y, P, N, file, isFast) {
     const date = new Date()
     const day = date.getDate()
     const month = date.getMonth() + 1
@@ -89,20 +111,35 @@ async function taskC(Y, P, N, file) {
     const buildStatics = {}
     const configFile = fs.readFileSync(`./slots_config/${file}.json`, 'utf-8')
     const slotsConfig = JSON.parse(configFile)
+    if (!isFast) fs.appendFileSync(`./sim_results/${day}_${month}_h${hour}_config-${file}.csv`, `rolls, Simulation Result, Math Result \n`)
+    else fs.appendFileSync(`./sim_results/${day}_${month}_h${hour}_config-${file}_fast.csv`, `rolls, Math Result \n`)
     let totalRolls = 0
+    const slotsMathProbs = []
     slotsConfig.forEach(slot => {
-        totalRolls += slot.goodPools.length + 5
+        let gPCount = slot.goodPools.length
+        if (slot.goodPools.includes(slot.blockedSub)) gPCount -= 1
+        totalRolls += Math.min(gPCount, 4) + 5
+        const hasBlockedSub = slot.blockedSub !== 0 ? 1 : 0
+        slotsMathProbs.push(mathTaskB_Max(hasBlockedSub, gPCount, Math.floor(N * slot.disksMult)))
     })
     const promises = []
-    for (let i = 0; i < Y; i++) {
-        promises.push(getBuildSlotsData(buildsArr, P, N, slotsConfig))
+    if (!isFast) {
+        for (let i = 0; i < Y; i++) {
+            promises.push(getBuildSlotsData(buildsArr, P, N, slotsConfig))
+        }
     }
+    const outputFile = isFast ? `${day}_${month}_h${hour}_config-${file}_fast.csv` : `${day}_${month}_h${hour}_config-${file}.csv`
     await Promise.all(promises)
+    const mathResult = mathTaskC(slotsMathProbs)
     for (let a = 0; a < totalRolls + 1; a++) {
-        buildStatics[a] = buildsArr.filter(x => x === a).length/(P*Y)*100
-        fs.appendFileSync(`./sim_results/${day}_${month}_h${hour}_config-${file}.csv`, `${a}, ${buildStatics[a]} \n`)
+        if (!isFast) {
+            buildStatics[a] = buildsArr.filter(x => x === a).length/(P*Y)*100
+            fs.appendFileSync(`./sim_results/${day}_${month}_h${hour}_config-${file}.csv`, `${a}, ${buildStatics[a]}, ${mathResult[a]*100} \n`)
+        } else {
+            fs.appendFileSync(`./sim_results/${day}_${month}_h${hour}_config-${file}_fast.csv`, `${a}, ${mathResult[a]*100} \n`)
+        }
     }
-    console.log(`\x1b[92mResults in ${`${day}_${month}_h${hour}_config-${file}.csv`}\x1b[0m`)
+    console.log(`\x1b[92mResults in ${outputFile}\x1b[0m`)
 }
 
 
@@ -185,7 +222,8 @@ const CLI = () => {
             type: 'select',
             message: 'Amount of Simulations per Core (default: 1000) - Precision',
             choices: weightChoices,
-            default: 'Medium 100x - Max ± 0.15%'
+            default: 'Medium 100x - Max ± 0.15%',
+            when: !isFast
         },
         {
             name: 'cores',
@@ -197,7 +235,8 @@ const CLI = () => {
                     return `${value} must be a positive whole number`
                 }
                 return true
-            }
+            },
+            when: !isFast
         },
         {
             name: 'disks',
@@ -223,7 +262,7 @@ const CLI = () => {
                 }
                 return true
             },
-            default: 10
+            default: 10,
         },
         {
             name: 'modeB',
@@ -259,10 +298,21 @@ const CLI = () => {
                 {
                   name: 'validation',
                   type: 'confirm',
-                  message: `Your simulation config is: \n ${JSON.stringify(answers, null, 2)} \n it will simulate a total of ${totalWeight} disks per core \n do you confirm? (n to redo)`
+                  message: isFast
+                   ? `Your Math config is: \n ${JSON.stringify(answers, null, 2)} \n do you confirm? (n to redo)`
+                   : `Your simulation config is: \n ${JSON.stringify(answers, null, 2)} \n it will simulate a total of ${totalWeight} disks per core \n do you confirm? (n to redo)`
                 },
              ]).then((answer) => {
-                if (!answer.validation) {
+                let impossibleDisk = false
+                if (answers.blockedSub && answers.preDist.includes(answers.blockedSub)) {
+                    impossibleDisk = true
+                    console.log(`This disk is impossible: ${answers.preDist} has ${answers.blockedSub}`)
+                }
+                if (answers.preDist && answers.preDist.length > 4) {
+                    impossibleDisk = true
+                    console.log(`This disk is impossible: ${answers.preDist} have more than 4 pools`)
+                }
+                if (!answer.validation || impossibleDisk) {
                     return CLI()
                 } else {
                     const blockedSub = answers.blockedSub === 'None' ? 0 :
@@ -279,13 +329,43 @@ const CLI = () => {
                         preDist.push(Number(poolId))
                     })
                     }
+                    const mathObj = {}
+                    mathObj.hasBlockedSub = blockedSub !== 0 ? 1 : 0
+                    mathObj.gPCount = goodPools.length
+                    if (goodPools.includes(blockedSub)) mathObj.gPCount -= 1
+                    mathObj.preDistGP = 0
+                    preDist?.forEach(sub => {
+                        if (goodPools.includes(sub)) mathObj.preDistGP += 1
+                    })
                     if(answers.function === 'TaskA') {
-                        taskA(answers.cores, weight, goodPools, blockedSub, preDist)
+                        if (!isFast) taskA(answers.cores, weight, goodPools, blockedSub, preDist, mathObj)
+                        else {
+                            const mathResults = mathTaskA(mathObj.hasBlockedSub, mathObj.gPCount, (preDist?.length || 0), mathObj.preDistGP)
+                            mathResults.forEach((result, rolls) => {
+                                console.log(`${rolls}: ${result*100}`)
+                            })
+                        }
                     } else if (answers.function === 'TaskB') {
-                        if (answers.modeB === 'Normal') taskB(answers.cores, weight, answers.disks, goodPools, blockedSub, 'Normal', preDist)
-                        else if (answers.modeB === 'Max') taskB(answers.cores, weight, answers.disks, goodPools, blockedSub, 'Max', preDist)
+                        if (answers.modeB === 'Normal') {
+                            if (!isFast) taskB(answers.cores, weight, answers.disks, goodPools, blockedSub, 'Normal', preDist, mathObj)
+                            else {
+                                const mathResults = mathTaskB_Normal(mathObj.hasBlockedSub, mathObj.gPCount, answers.disks, (preDist?.length || 0), mathObj.preDistGP)
+                                mathResults.forEach((result, rolls) => {
+                                    console.log(`${rolls}: ${result*100}`)
+                                })
+                            }
+                        }
+                        else if (answers.modeB === 'Max') {
+                            if (!isFast) taskB(answers.cores, weight, answers.disks, goodPools, blockedSub, 'Max', preDist, mathObj)
+                            else {
+                                const mathResults = mathTaskB_Max(mathObj.hasBlockedSub, mathObj.gPCount, answers.disks, (preDist?.length || 0), mathObj.preDistGP)
+                                mathResults.forEach((result, rolls) => {
+                                    console.log(`${rolls}: ${result*100}`)
+                                })
+                            }
+                        } 
                     } else if (answers.function === 'TaskC') {
-                        taskC(answers.cores, weight, answers.diskSlots, answers.configC)
+                        taskC(answers.cores, weight, answers.diskSlots, answers.configC, isFast)
                     }
                 }
              })
