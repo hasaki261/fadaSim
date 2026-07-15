@@ -120,7 +120,7 @@ async function taskC(Y, P, N, file, isFast) {
         if (slot.goodPools.includes(slot.blockedSub)) gPCount -= 1
         totalRolls += Math.min(gPCount, 4) + 5
         const hasBlockedSub = slot.blockedSub !== 0 ? 1 : 0
-        slotsMathProbs.push(mathTaskB_Max(hasBlockedSub, gPCount, Math.floor(N * slot.disksMult)))
+        slotsMathProbs.push(mathTaskB_Max(hasBlockedSub, gPCount, Math.floor(N * slot.disksMult), 0, 0))
     })
     const promises = []
     if (!isFast) {

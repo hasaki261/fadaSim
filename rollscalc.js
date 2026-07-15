@@ -1,4 +1,4 @@
-const { simplify, parse, combinations, factorial, multiply, fraction, pow, subtract, sum, mean, rationalize, number } = require('mathjs')
+const { simplify, parse, combinations, factorial, multiply, fraction, pow, subtract, sum, mean, rationalize, number, bignumber } = require('mathjs')
 
 
 // Math functions
@@ -107,22 +107,22 @@ function PGF (slotsAccProbs) {
 // Exports
 function mathTaskA(isBlocked, goodPoolsCount, preDist, preDistGP) {
     const result = [] 
-    probsPopulate(isBlocked, goodPoolsCount, preDist, preDistGP).forEach(elm => {result.push(number(elm))})
+    probsPopulate(isBlocked, goodPoolsCount, preDist, preDistGP).forEach(elm => {result.push(bignumber(elm))})
     return result
 }
 function mathTaskB_Normal(isBlocked, goodPoolsCount, pDisks, preDist, preDistGP) {
     const result = []
-    farmProbs(pDisks, probsPopulate(isBlocked, goodPoolsCount, preDist, preDistGP)).forEach(elm => {result.push(number(elm))})
+    farmProbs(pDisks, probsPopulate(isBlocked, goodPoolsCount, preDist, preDistGP)).forEach(elm => {result.push(bignumber(elm))})
     return result
 }
 function mathTaskB_Max(isBlocked, goodPoolsCount, pDisks, preDist, preDistGP) {
     const result = []
-    accProbs(isBlocked, pDisks, goodPoolsCount, preDist, preDistGP).forEach(elm => {result.push(number(elm))})
+    accProbs(isBlocked, pDisks, goodPoolsCount, preDist, preDistGP).forEach(elm => {result.push(bignumber(elm))})
     return result
 }
 function mathTaskC(slotAccs) {
     const result = []
-    PGF(slotAccs).forEach(elm => {result.push(number(elm))})
+    PGF(slotAccs).forEach(elm => {result.push(bignumber(elm))})
     return result
 }
 module.exports = { mathTaskA, mathTaskB_Normal, mathTaskB_Max, mathTaskC}
